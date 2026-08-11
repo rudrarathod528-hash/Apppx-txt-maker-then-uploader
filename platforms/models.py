@@ -26,6 +26,7 @@ class SessionData:
     name: str = ""
     expiry: int = 0  # epoch seconds; 0 = unknown
     refresh_token: str = ""
+    cookies: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -36,13 +37,21 @@ class SessionData:
             "name": self.name,
             "expiry": self.expiry,
             "refresh_token": self.refresh_token,
+            "cookies": self.cookies,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> "SessionData":
-        return cls(**{k: data.get(k, "") for k in (
-            "token", "user_id", "tenant_id", "tenant_name", "name", "expiry", "refresh_token"
-        )})
+        return cls(
+            token=data.get("token", ""),
+            user_id=data.get("user_id", ""),
+            tenant_id=data.get("tenant_id", ""),
+            tenant_name=data.get("tenant_name", ""),
+            name=data.get("name", ""),
+            expiry=data.get("expiry", 0) or 0,
+            refresh_token=data.get("refresh_token", "") or "",
+            cookies=data.get("cookies") or {},
+        )
 
 
 @dataclass

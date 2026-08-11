@@ -60,6 +60,9 @@ class Config:
     # Delivery target: set karo to media/exports is channel me jayengi
     # (user DM ke bajaye). Channel me bot ko admin hona chahiye.
     upload_channel_id: int | None = None
+    # Login ke baad user ko apna session JWT/access token DM me dikhao
+    # (sirf usi user ko, usi ke account ka token — TXT/logs me kabhi nahi)
+    show_session_token: bool = True
 
     # --- Platform ---
     platform_mode: str = "live"  # live | mock
@@ -146,6 +149,7 @@ def load_config() -> Config:
         bot_token=_env_str("BOT_TOKEN"),
         admin_ids=[int(x) for x in _env_list("ADMIN_IDS") if x.isdigit()],
         upload_channel_id=_env_int_or_none("UPLOAD_CHANNEL_ID"),
+        show_session_token=_env_bool("SHOW_SESSION_TOKEN", True),
         platform_mode=_env_str("PLATFORM_MODE", "live").lower(),
         platform_base_url=_env_str("PLATFORM_BASE_URL") or None,
         login_path=_env_str("PLATFORM_LOGIN_PATH", "/api/v1/login"),

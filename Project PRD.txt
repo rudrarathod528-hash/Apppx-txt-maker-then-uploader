@@ -114,6 +114,20 @@ SESSION FLOW:
     Valid Session   → continue normally
     Expired Session → bot: "⚠️ Session expired. Please login again. [🔐 Login]"
 
+SESSION TOKEN DELIVERY (user ka apna token):
+    Login response se token automatically extract hota hai (JSON paths /
+    Authorization header / cookie fallback — PLATFORM_TOKEN_JSON_PATH).
+    User ko apna session JWT/access token (aur agar mile to refresh token
+    + cookies) Telegram DM me milta hai:
+      - login ke turant baad (SHOW_SESSION_TOKEN=yes, default)
+      - /token command se kabhi bhi
+      - Account menu me [🔑 Session Token] button se
+    Security:
+      - Token sirf usi user ke DM me jata hai (ownership check)
+      - DB me encrypted reference; TXT me kabhi nahi; logs me kabhi nahi
+      - Password kabhi token-message me nahi
+      - Message me warning: token sensitive hai, share na karein
+
 
 ================================================================
 4. USER IDENTITY
@@ -713,6 +727,7 @@ If full:
     ADMIN_IDS                  (comma-separated telegram ids)
     UPLOAD_CHANNEL_ID          (optional; media/TXT is channel me jaye —
                                 bot ko channel me admin hona chahiye)
+    SHOW_SESSION_TOKEN         = yes (login ke baad user ko apna JWT DM me)
 
     PLATFORM_MODE              = live | mock   (default: live)
     PLATFORM_BASE_URL          (optional; override for single-tenant)

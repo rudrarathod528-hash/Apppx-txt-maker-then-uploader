@@ -140,6 +140,15 @@ async def run_selftest() -> int:
         ctx.sessions.save(TG_A, res.session, DEMO_USER)
     await t("login: demo account works + session saved (encrypted)", test_login_ok)
 
+    async def test_token_info() -> None:
+        """User ke apne session ka JWT extract hota hai (encrypted se)."""
+        info = ctx.sessions.get_token_info(TG_A)
+        assert info and info["token"].startswith("mock-"), info
+        assert "demo123" not in str(info), "password leak!"
+        # doosre user ka token nahi milta
+        assert ctx.sessions.get_token_info(TG_B) is None
+    await t("session: token info extract (JWT view, own account only)", test_token_info)
+
     async def test_no_password_in_db() -> None:
         conn = sqlite3.connect(cfg.database_path)
         cols = [r[1] for r in conn.execute("PRAGMA table_info(users)")]

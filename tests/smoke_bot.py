@@ -168,9 +168,11 @@ async def main() -> int:
     await asyncio.sleep(2.0)  # worker ko job process karne do
     # job status
     await dp.feed_update(bot, cb_update("m:jobs", mid + 14))
+    # session token
+    await dp.feed_update(bot, msg_update("/token", mid + 15))
     # logout
-    await dp.feed_update(bot, cb_update("m:logout", mid + 15))
-    await dp.feed_update(bot, cb_update("logout:yes", mid + 16))
+    await dp.feed_update(bot, cb_update("m:logout", mid + 16))
+    await dp.feed_update(bot, cb_update("logout:yes", mid + 17))
 
     texts = []
     for r in bot.session.requests:
@@ -192,6 +194,7 @@ async def main() -> int:
         "content": "Chapter 01" in joined,
         "export_ready": "TXT file is ready" in joined,
         "job_created": "Job Created" in joined,
+        "token_visible": "Session Token" in joined and "mock-token" in joined,
         "logged_out": "Logged out successfully" in joined,
     }
     for name, passed in checks.items():

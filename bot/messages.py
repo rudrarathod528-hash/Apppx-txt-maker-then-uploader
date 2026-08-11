@@ -167,6 +167,31 @@ EXPORT_ERROR = "❌ <b>Export failed.</b>\n\n{reason}"
 
 BUSY = "⏳ Server is currently busy.\n\nAapka job queue me add ho gaya hai."
 
+def session_token_text(info: dict) -> str:
+    """User ke apne account ka session token message (DM me)."""
+    lines = ["🔑 <b>Session Token</b>\n"]
+    token = info.get("token") or ""
+    lines.append("JWT / Access Token:")
+    lines.append(f"<code>{token}</code>")
+    refresh = info.get("refresh_token") or ""
+    if refresh:
+        lines.append("\nRefresh Token:")
+        lines.append(f"<code>{refresh}</code>")
+    cookies = info.get("cookies") or {}
+    if cookies:
+        cookie_str = "; ".join(f"{k}={v}" for k, v in cookies.items())
+        lines.append("\nCookies:")
+        lines.append(f"<code>{cookie_str[:1000]}</code>")
+    lines.append(f"\n⏳ Expires: {fmt_expiry(info.get('expiry') or 0)}")
+    lines.append(f"🏫 Institute: {info.get('tenant_name', '-')}")
+    lines.append(f"👤 Account: {info.get('name', '-')}")
+    lines.append(
+        "\n⚠️ Ye token <b>aapke apne account</b> ka hai — sensitive hai, "
+        "kisi ko share na karein. Expire hone par /login se naya token milega."
+    )
+    return "\n".join(lines)
+
+
 def login_success(name: str, tenant: str, courses: int) -> str:
     return (
         "✅ <b>Login Successful</b>\n\n"

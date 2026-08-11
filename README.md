@@ -10,6 +10,7 @@ website/admin panel ki zarurat nahi.
 | 🔐 Telegram login (Institute + ID + Password) | §1, §2 |
 | 🔑 Password **kabhi store/log nahi hota** (DB me column hi nahi) | §2, §21 |
 | 🔒 Encrypted session storage (Fernet) + expiry | §3 |
+| 🔑 `/token` — apna session JWT/access token (login se extract, DM me) | §3 |
 | 📚 Course list + details (videos/pdfs/chapters counts) | §6, §7 |
 | 📋 Content tree (chapters → items) browse + pagination | §8, §9 |
 | 📄 TXT export — complete / videos-only / PDFs-only / selected chapters / multi-course | §10-12, §34-35 |
@@ -129,6 +130,7 @@ Sab `.env.example` me documented hain. Important:
 | `BOT_TOKEN` | — | @BotFather token (live mode me required) |
 | `ADMIN_IDS` | — | Owner/admin Telegram IDs — `/admin` access |
 | `UPLOAD_CHANNEL_ID` | — | Files (media + TXT) is channel me jayengi; bot ko channel me admin hona chahiye |
+| `SHOW_SESSION_TOKEN` | `yes` | Login ke baad user ko apna session JWT DM me dikhao |
 | `PLATFORM_MODE` | `live` | `live` ya `mock` |
 | `PLATFORM_BASE_URL` | — | Single-tenant ho to set karo; warna registry se auto |
 | `PLATFORM_LOGIN_PATH` | `/api/v1/login` | Login endpoint path |
@@ -229,6 +231,24 @@ Client response ke common keys ko automatically detect karta hai:
 
 Agar aapke platform ka structure alag hai → `PLATFORM_*` paths/keys `.env` me
 override karo.
+
+## 🔑 Apna session JWT kaise milega?
+
+Aapke paas cookie/token/key nahi hai — koi baat nahi. Bot login karte waqt
+platform ke response se **token automatically extract** karta hai:
+
+- **Login ke turant baad:** agar `SHOW_SESSION_TOKEN=yes` (default) to
+  `🔑 Session Token` message DM me aata hai — JWT/access token, refresh token
+  (agar platform de), cookies (agar platform cookie-auth use kare), expiry,
+  institute, account.
+- **Kabhi bhi:** `/token` command ya Account menu me `[🔑 Session Token]` button.
+- Token JSON me kahan hai — configurable: `PLATFORM_TOKEN_JSON_PATH`
+  (default `data.token, data.access_token, data.jwt, token, ...`); agar
+  platform header me token de (Authorization) ya cookie me (`token`/`jwt`),
+  wo bhi auto-detect hota hai.
+- **Security:** token sirf usi user ke DM me jata hai (ownership check);
+  DB me encrypted rehta hai; TXT/logs me kabhi nahi; password kabhi nahi.
+- ⚠️ Token sensitive hai — share na karein; expire hone par `/login` se naya.
 
 ## 🔌 ClassX/AppX API adapter
 

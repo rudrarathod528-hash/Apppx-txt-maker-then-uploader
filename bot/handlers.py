@@ -214,6 +214,23 @@ async def cmd_logout(message: Message) -> None:
     await _send(message.from_user.id, msg.LOGOUT_CONFIRM, kb.logout_kb())
 
 
+@router.message(Command("token"))
+async def cmd_token(message: Message) -> None:
+    """User ko apna session JWT dikhao (sirf usi ke account ka)."""
+    await _send_token(message.from_user.id)
+
+
+async def _send_token(tg_id: int) -> None:
+    if not ctx.sessions.get(tg_id):
+        await _send(tg_id, msg.SESSION_EXPIRED, kb.login_kb())
+        return
+    info = ctx.sessions.get_token_info(tg_id)
+    if not info or not info.get("token"):
+        await _send(tg_id, "🔑 Abhi token available nahi hai. /login karke dobara try karein.")
+        return
+    await _send(tg_id, msg.session_token_text(info))
+
+
 @router.message(Command("admin"))
 async def cmd_admin(message: Message) -> None:
     tg_id = message.from_user.id
@@ -343,6 +360,8 @@ async def fsm_password(message: Message, state: FSMContext) -> None:
         pass
     await _send(tg_id, msg.login_success(session.name or username, session.tenant_name, len(courses)))
     await _send(tg_id, msg.MENU, kb.main_menu_kb())
+    if ctx.cfg.show_session_token:
+        await _send_token(tg_id)
 
 
 async def _send_msg(chat_id: int, text: str, markup=None) -> Message:
@@ -462,7 +481,13 @@ async def cb_account(cb: CallbackQuery) -> None:
         username=(row or {}).get("username", "-"),
         expiry=msg.fmt_expiry(session.expiry),
         courses=len(courses),
-    ), kb.main_menu_kb())
+    ), kb.account_kb())
+    await _answer(cb)
+
+
+@router.callback_query(F.data == "m:token")
+async def cb_token(cb: CallbackQuery) -> None:
+    await _send_token(cb.from_user.id)
     await _answer(cb)
 
 

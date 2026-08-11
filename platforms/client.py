@@ -117,13 +117,16 @@ class PlatformClient:
                         if resp.status in (401, 403):
                             break
                         continue
+                    cookies = {k: v.value for k, v in resp.cookies.items()}
                     token = self._extract_token(payload, resp.headers)
+                    if not token:
+                        token = self._extract_token_from_cookies(cookies)
                     if not token:
                         last_error = AppError(
                             "invalid_login", "Login response me token nahi mila."
                         )
                         continue
-                    return self._build_session(payload, token, tenant)
+                    return self._build_session(payload, token, tenant, cookies=cookies)
             except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                 log.warning("login network error host=%s err=%s", tenant.host, e.__class__.__name__)
                 last_error = AppError("network", "Temporary network error.")
@@ -141,7 +144,17 @@ class PlatformClient:
             return auth.split(" ", 1)[1].strip()
         return ""
 
-    def _build_session(self, payload: Any, token: str, tenant: Tenant) -> SessionData:
+    @staticmethod
+    def _extract_token_from_cookies(cookies: dict) -> str:
+        """Cookie-auth platforms ke liye: token/jwt/access_token cookie."""
+        for key in ("token", "jwt", "access_token", "auth_token", "session"):
+            val = cookies.get(key)
+            if val and val.strip():
+                return val.strip()
+        return ""
+
+    def _build_session(self, payload: Any, token: str, tenant: Tenant,
+                       cookies: dict | None = None) -> SessionData:
         name = first_non_empty(payload, ["name", "user_name", "full_name", "display_name", "username", "first_name"])
         user_id = first_non_empty(payload, ["user_id", "id", "userId", "uid", "uuid"])
         expiry_raw = deep_find(payload, ["expires_in", "expiry", "expires_at", "token_expiry"])
@@ -154,6 +167,7 @@ class PlatformClient:
                     expiry = int(expiry_raw)
         except Exception:
             expiry = 0
+        refresh = first_non_empty(payload, ["refresh_token", "refreshToken", "refresh-token"])
         return SessionData(
             token=token,
             user_id=str(user_id),
@@ -161,6 +175,8 @@ class PlatformClient:
             tenant_name=tenant.name,
             name=name or user_id or "User",
             expiry=expiry,
+            refresh_token=refresh,
+            cookies=cookies or {},
         )
 
     async def revoke(self, session: SessionData) -> None:

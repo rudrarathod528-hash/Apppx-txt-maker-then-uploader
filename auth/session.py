@@ -79,6 +79,29 @@ class SessionManager:
             pass
         return session
 
+    def get_token_info(self, tg_id: int) -> dict | None:
+        """User ke apne session ka JWT/access token info (encrypted se decrypt).
+
+        Sirf usi user ke liye (ownership = telegram_user_id). Token kabhi
+        logs me nahi; isko user ke DM me dikhaya jata hai.
+        """
+        row = self.db.get_user(tg_id)
+        if not row or not row.get("encrypted_session"):
+            return None
+        try:
+            data = json.loads(self.crypto.decrypt(row["encrypted_session"]))
+        except AppError:
+            return None
+        session = SessionData.from_dict(data)
+        return {
+            "token": session.token,
+            "refresh_token": session.refresh_token,
+            "cookies": session.cookies or {},
+            "expiry": session.expiry or row.get("token_expiry") or 0,
+            "tenant_name": session.tenant_name or row.get("tenant_name", ""),
+            "name": session.name or "",
+        }
+
     def clear(self, tg_id: int) -> None:
         self.db.clear_session(tg_id)
         log.info("session cleared user=%s", tg_id)

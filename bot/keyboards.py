@@ -271,3 +271,10 @@ def logout_kb() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="❌ Cancel", callback_data="m:home"),
         ),
     ])
+
+
+def account_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        _row(InlineKeyboardButton(text="🔑 Session Token", callback_data="m:token")),
+        _row(InlineKeyboardButton(text="🏠 Home", callback_data="m:home")),
+    ])
