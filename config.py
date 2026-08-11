@@ -83,6 +83,11 @@ class Config:
     max_active_jobs: int = 5
     max_jobs_per_user: int = 3
     export_mode: str = "single"  # single | separate
+    # TXT me reference kaise likhein:
+    #   base = sirf host+path (query params hatao — PRD §10 default, safe)
+    #   full = platform-provided complete reference (signed URL bhi)
+    #          personal authorized use; links expire ho sakti hain
+    txt_reference_mode: str = "base"
 
     # --- Security ---
     encryption_key: str | None = None
@@ -116,6 +121,8 @@ class Config:
             errors.append("PLATFORM_MODE must be 'live' or 'mock'")
         if self.export_mode not in ("single", "separate"):
             errors.append("EXPORT_MODE must be 'single' or 'separate'")
+        if self.txt_reference_mode not in ("base", "full"):
+            errors.append("TXT_REFERENCE_MODE must be 'base' or 'full'")
         if not Path(self.registry_path).exists():
             errors.append(f"Registry file not found: {self.registry_path}")
         return errors
@@ -158,6 +165,7 @@ def load_config() -> Config:
         max_active_jobs=_env_int("MAX_ACTIVE_JOBS", 5),
         max_jobs_per_user=_env_int("MAX_JOBS_PER_USER", 3),
         export_mode=_env_str("EXPORT_MODE", "single").lower(),
+        txt_reference_mode=_env_str("TXT_REFERENCE_MODE", "base").lower(),
         encryption_key=_env_str("ENCRYPTION_KEY") or None,
         log_level=_env_str("LOG_LEVEL", "INFO").upper(),
         registry_path=_env_str("REGISTRY_PATH", str(BASE_DIR / "appxapis.json")),

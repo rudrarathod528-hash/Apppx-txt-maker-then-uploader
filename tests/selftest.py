@@ -37,6 +37,7 @@ from main import _build_context  # noqa: E402
 from platforms.models import SessionData  # noqa: E402
 from platforms.mock import DEMO_PASS, DEMO_USER  # noqa: E402
 from utils.gateway import BaseGateway, SendResult  # noqa: E402
+from utils.helpers import now_ts  # noqa: E402
 from utils.logger import get_logger  # noqa: E402
 from utils.security import AppError  # noqa: E402
 
@@ -91,11 +92,17 @@ async def drain(timeout: float = 60.0) -> None:
 async def run_selftest() -> int:
     results: list[tuple[str, bool, str]] = []
 
+    class SkipTest(Exception):
+        pass
+
     async def t(name: str, fn) -> None:
         try:
             await fn()
             results.append((name, True, ""))
             print(f"  ✅ {name}")
+        except SkipTest as e:
+            results.append((name, True, ""))
+            print(f"  ⏭  {name} — SKIPPED ({e})")
         except Exception as e:  # noqa: BLE001
             results.append((name, False, str(e)))
             print(f"  ❌ {name}: {e}")
@@ -185,6 +192,43 @@ async def run_selftest() -> int:
             ctx.exports.delete_export(eid)
     await t("export: videos-only / pdfs-only / selected chapters", test_export_filters)
 
+    async def test_export_full_references() -> None:
+        """TXT_REFERENCE_MODE=full — signed URL query params bhi TXT me."""
+        courses = await ctx.courses.list_courses(session, TG_A)
+        tree = await ctx.content.get_tree(session, TG_A, courses[0])
+        # ek signed URL wala item inject karo (base mode me query strip hoti hai)
+        from platforms.models import ContentItem, Chapter, ContentTree
+
+        signed_item = ContentItem(
+            content_id="SIGNED1", title="Signed Video", type="video",
+            chapter="Chapter 01",
+            reference="https://cdn.classx.co.in/media/phy/01/motion.mp4?token=abc123&sig=xyz&expires=9999999999",
+        )
+        signed_tree = ContentTree(
+            course_id=courses[0].course_id, course_title=courses[0].title,
+            chapters=[Chapter(title="Chapter 01", items=[signed_item])],
+        )
+        # base mode (default): query params hat jate hain
+        old_mode = ctx.exports.reference_mode
+        ctx.exports.reference_mode = "base"
+        f = await ctx.exports.generate(session, TG_A, [courses[0]], export_id="T6")
+        assert "?token=abc123" not in f[0].read_text()
+        # full mode: complete signed reference included
+        ctx.exports.reference_mode = "full"
+        ctx.content._cache[TG_A][courses[0].course_id] = (now_ts(), signed_tree)
+        f = await ctx.exports.generate(session, TG_A, [courses[0]], export_id="T7")
+        text = f[0].read_text()
+        assert "?token=abc123&sig=xyz&expires=9999999999" in text, "signed URL missing!"
+        assert "personal authorized use" in text, "header note missing"
+        # password/session kabhi nahi
+        assert "demo123" not in text and "mock-token" not in text
+        ctx.exports.reference_mode = old_mode
+        ctx.exports.delete_export("T6")
+        ctx.exports.delete_export("T7")
+        # cache restore — baaki tests ko real tree chahiye
+        ctx.content.invalidate(TG_A, courses[0].course_id)
+    await t("export: TXT_REFERENCE_MODE full → signed URL included (no secrets)", test_export_full_references)
+
     async def test_export_multi() -> None:
         courses = await ctx.courses.list_courses(session, TG_A)
         files = await ctx.exports.generate(session, TG_A, courses[:2], kind="complete", export_id="T5")
@@ -206,6 +250,59 @@ async def run_selftest() -> int:
         import shutil
         shutil.rmtree(Path(cfg.job_dir) / "MED1", ignore_errors=True)
     await t("media: mock PDF valid + mock video generated", test_media_process)
+
+    async def test_drm_detection() -> None:
+        """DRM indicators → clean drm_protected error (bypass kabhi nahi)."""
+        from platforms.models import ContentItem
+
+        for bad_ref in (
+            "https://cdn.classx.co.in/v.mp4?token=x&drm=widevine",
+            "https://cdn.classx.co.in/manifest.mpd?drm=playready",
+            "https://cdn.classx.co.in/license?token=x",
+            "https://cdn.classx.co.in/v.mp4?drm=true",
+        ):
+            item = ContentItem(content_id="X", title="DRM", type="video", reference=bad_ref)
+            try:
+                await ctx.media.process(session, item, "MED-DRM", 1)
+                raise AssertionError(f"DRM accepted: {bad_ref}")
+            except AppError as e:
+                assert e.code == "drm_protected", f"code={e.code} for {bad_ref}"
+        # non-DRM signed URL ab bhi allowed hai (download path)
+        ok_item = ContentItem(content_id="Y", title="OK", type="video",
+                              reference="https://cdn.classx.co.in/v.mp4?token=abc&sig=xyz")
+        try:
+            await ctx.media.process(session, ok_item, "MED-DRM", 2)
+        except AppError as e:
+            assert e.code in ("network", "http_error", "not_found", "file_too_large"), \
+                f"non-DRM URL galat fail: {e.code}"
+    await t("media: DRM detection → clean error, signed non-DRM URL allowed", test_drm_detection)
+
+    async def test_hls_remux() -> None:
+        """HLS (.m3u8) remux — ffmpeg available ho to full test, warna skip."""
+        import shutil as _shutil
+
+        if not _shutil.which("ffmpeg"):
+            raise SkipTest("ffmpeg installed nahi (Docker image me included hai)")
+        # chhota HLS sample banake remux karo
+        import subprocess
+
+        work = Path(cfg.job_dir) / "HLS-TEST"
+        work.mkdir(parents=True, exist_ok=True)
+        src = work / "src.mp4"
+        m3u8 = work / "playlist.m3u8"
+        subprocess.run([
+            "ffmpeg", "-y", "-loglevel", "error",
+            "-f", "lavfi", "-i", "testsrc=duration=1:size=160x120:rate=10",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-f", "hls",
+            "-hls_time", "1", "-hls_list_size", "0", str(m3u8),
+        ], check=True, capture_output=True)
+        assert m3u8.exists()
+        out = await ctx.media._remux_hls(work / "out", str(m3u8), None)
+        assert out.exists() and out.stat().st_size > 0
+        assert out.suffix == ".mp4"
+        import shutil as _sh
+        _sh.rmtree(work, ignore_errors=True)
+    await t("media: HLS .m3u8 → ffmpeg remux → mp4", test_hls_remux)
 
     # ------------------------------------------------------------ jobs
     async def test_job_lifecycle() -> None:

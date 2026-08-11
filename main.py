@@ -59,7 +59,8 @@ def _build_context(cfg: Config, bot=None, gateway=None) -> None:
     login_svc = LoginService(cfg, registry, client)
     courses = CourseService(client, cache_ttl=cfg.content_cache_ttl_sec)
     content = ContentService(client, cache_ttl=cfg.content_cache_ttl_sec)
-    exports = ExportService(courses, content, cfg.export_dir, cfg.export_mode)
+    exports = ExportService(courses, content, cfg.export_dir, cfg.export_mode,
+                            reference_mode=cfg.txt_reference_mode)
     media = MediaService(cfg, cfg.job_dir)
     queue = JobQueue()
     jobs = JobManager(cfg, db, queue, courses, content)

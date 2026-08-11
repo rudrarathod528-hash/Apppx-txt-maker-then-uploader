@@ -3,9 +3,11 @@ TXT export service — PRD sections 10-12, 34-35.
 
 - Complete course / videos only / PDFs only / selected chapters
 - Multiple courses: EXPORT_MODE single (1 file) ya separate (per course)
+- Reference mode: TXT_REFERENCE_MODE=base (host+path, PRD-safe default)
+  ya full (platform-provided signed URL bhi — personal authorized use)
 - Streaming write (large courses ke liye memory-safe)
 - Temporary file → upload → delete (caller)
-- TXT me kabhi credentials/session secrets nahi hote (sirf metadata + references)
+- TXT me kabhi password/session secrets nahi hote (sirf metadata + references)
 """
 from __future__ import annotations
 
@@ -23,11 +25,36 @@ log = get_logger("export")
 
 
 class ExportService:
-    def __init__(self, courses: CourseService, content: ContentService, export_dir: str, export_mode: str = "single"):
+    def __init__(self, courses: CourseService, content: ContentService, export_dir: str,
+                 export_mode: str = "single", reference_mode: str = "base"):
         self.courses_svc = courses
         self.content_svc = content
         self.export_dir = Path(export_dir)
         self.export_mode = export_mode
+        self.reference_mode = reference_mode  # base | full
+
+    # ------------------------------------------------------------ reference
+
+    def sanitize_reference(self, reference: str) -> str:
+        """TXT me jane wale reference ko mode ke hisaab se banata hai.
+
+        base: sirf scheme+host+path (signed query params hatao — PRD §10).
+              Link ek identifier/reference ki tarah kaam karti hai.
+        full: platform-provided complete reference — signed URL bhi included.
+              NOTE: full mode me links account-owner ke personal authorized
+              use ke liye hain aur platform ke hisaab se expire ho sakti hain.
+        """
+        if not reference or reference.startswith("mock://"):
+            return reference
+        try:
+            from urllib.parse import urlsplit, urlunsplit
+
+            parts = urlsplit(reference)
+            if self.reference_mode == "full":
+                return reference
+            return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+        except Exception:
+            return re.sub(r"[?&#].*$", "", reference)
 
     # ------------------------------------------------------------ selection
 
@@ -47,9 +74,18 @@ class ExportService:
 
     # ------------------------------------------------------------ generation
 
-    def _write_course(self, fh, course_title: str, tree: ContentTree, items_by_chapter: dict[str, list[ContentItem]]) -> None:
+    def _write_header(self, fh) -> None:
         fh.write("APPX COURSE\n")
         fh.write("============\n\n")
+        if self.reference_mode == "full":
+            fh.write(
+                "Note: Is export me platform-provided complete references (signed\n"
+                "URLs) hain. Ye sirf account-owner ke personal authorized use ke\n"
+                "liye hain — links expire ho sakti hain.\n\n"
+            )
+
+    def _write_course(self, fh, course_title: str, tree: ContentTree, items_by_chapter: dict[str, list[ContentItem]]) -> None:
+        self._write_header(fh)
         fh.write(f"Course: {course_title}\n\n")
         for ch in tree.chapters:
             items = items_by_chapter.get(ch.title, [])
@@ -138,15 +174,3 @@ class ExportService:
                 path.rmdir()
             except OSError:
                 pass
-
-    def sanitize_reference(self, reference: str) -> str:
-        """TXT me jane wale reference se sensitive query params hatao."""
-        if not reference or reference.startswith("mock://"):
-            return reference
-        try:
-            from urllib.parse import urlsplit, urlunsplit
-
-            parts = urlsplit(reference)
-            return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
-        except Exception:
-            return re.sub(r"[?&#].*$", "", reference)

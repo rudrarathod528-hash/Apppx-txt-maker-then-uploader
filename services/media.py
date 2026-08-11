@@ -31,6 +31,28 @@ log = get_logger("media")
 
 _DISPOSITION_RE = re.compile(r'filename\*?=(?:UTF-8\'\')?"?([^";]+)"?', re.IGNORECASE)
 
+# DRM / encrypted-stream indicators — inhe bypass nahi karte, clean fail karte hain.
+_DRM_INDICATORS = (
+    "widevine", "playready", "fairplay", "clearkey", "drm", "drmlicense",
+    "license-server", "getlicense", "wvls", "mpd?drm", ".mpd",
+    "/license", "?license", "licenseserver",
+)
+# HLS indicators (extension ya content-type dono check hote hain)
+_HLS_CONTENT_TYPES = (
+    "application/vnd.apple.mpegurl", "application/x-mpegurl",
+    "audio/mpegurl", "audio/x-mpegurl",
+)
+
+
+def _is_drm_reference(url: str) -> bool:
+    low = url.lower()
+    return any(ind in low for ind in _DRM_INDICATORS)
+
+
+def _is_hls_url(url: str) -> bool:
+    path = url.split("?")[0].split("#")[0].lower()
+    return path.endswith(".m3u8") or path.endswith(".m3u")
+
 
 class MediaService:
     def __init__(self, cfg: Config, job_dir: str):
@@ -51,10 +73,22 @@ class MediaService:
     # ------------------------------------------------------------ entry
 
     async def process(self, session: SessionData, item: ContentItem, job_id: str, item_no: int) -> Path:
-        """Item ka media download/process karke temp file return karta hai."""
+        """Item ka media download/process karke temp file return karta hai.
+
+        - DRM-protected references (widevine/playready/fairplay etc.) → clean
+          drm_protected error (bypass kabhi nahi).
+        - HLS (.m3u8 / HLS content-type) → ffmpeg remux to mp4.
+        - Direct files → stream download + size check.
+        """
         ref = (item.reference or "").strip()
         if not ref:
             raise AppError("not_found", "No authorized media reference available for this item.")
+
+        if _is_drm_reference(ref):
+            raise AppError(
+                "drm_protected",
+                "Media cannot be processed through the available authorized method.",
+            )
 
         dest_dir = self.job_dir / job_id
         dest_dir.mkdir(parents=True, exist_ok=True)
@@ -77,9 +111,11 @@ class MediaService:
         if ref.startswith("mock://"):
             dest = await self._handle_mock(dest, item)
         elif ref.startswith(("http://", "https://")):
-            dest = await self._download(dest, ref, auth_header)
-            if dest.suffix.lower() == ".m3u8":
+            dest, is_hls = await self._download(dest, ref, auth_header)
+            if is_hls:
                 dest = await self._remux_hls(dest, ref, auth_header)
+                # original .m3u8 file hatao (sirf mp4 rakhte hain)
+                dest.with_suffix(".m3u8").unlink(missing_ok=True)
         else:
             raise AppError("unsupported_media", "Media cannot be processed through the available authorized method.")
 
@@ -106,11 +142,18 @@ class MediaService:
                 return make_sample_pdf(dest.with_suffix(".pdf"), item.title)
         return make_sample_pdf(dest.with_suffix(".pdf"), item.title)
 
-    async def _download(self, dest: Path, url: str, auth_header: dict | None = None) -> Path:
+    async def _download(self, dest: Path, url: str, auth_header: dict | None = None) -> tuple[Path, bool]:
+        """File stream download karta hai.
+
+        Returns (path, is_hls) — HLS tab detect hota hai jab:
+          - URL .m3u8/.m3u khatam hota hai, YA
+          - response Content-Type HLS ho (extension ke bina bhi).
+        """
         if not self._http:
             raise AppError("processing_error", "Media service not ready.")
         ext = self._ext_from_url(url)
         dest = dest.with_suffix(ext or ".bin")
+        is_hls = _is_hls_url(url)
 
         # size pre-check (HEAD)
         try:
@@ -120,8 +163,11 @@ class MediaService:
                 length = resp.headers.get("Content-Length")
                 if length and int(length) > self.cfg.max_upload_bytes:
                     raise AppError("file_too_large", "File too large for Telegram delivery.")
-                content_type = resp.headers.get("Content-Type", "")
-                if "pdf" in content_type and ext not in (".pdf",):
+                content_type = resp.headers.get("Content-Type", "").lower()
+                if any(ct in content_type for ct in _HLS_CONTENT_TYPES):
+                    is_hls = True
+                    dest = dest.with_suffix(".m3u8")
+                elif "pdf" in content_type and ext not in (".pdf",):
                     dest = dest.with_suffix(".pdf")
         except AppError:
             raise
@@ -132,8 +178,13 @@ class MediaService:
             async with self._http.get(url, allow_redirects=True, headers=auth_header or {}) as resp:
                 if resp.status >= 400:
                     raise self._http_error(resp.status)
+                content_type = resp.headers.get("Content-Type", "").lower()
+                if any(ct in content_type for ct in _HLS_CONTENT_TYPES):
+                    is_hls = True
+                    if dest.suffix not in (".m3u8", ".m3u"):
+                        dest = dest.with_suffix(".m3u8")
                 cd_name = _DISPOSITION_RE.search(resp.headers.get("Content-Disposition", ""))
-                if cd_name:
+                if cd_name and not is_hls:
                     dest = dest.with_name(secure_filename(cd_name.group(1)))
                 downloaded = 0
                 tmp = dest.with_suffix(dest.suffix + ".part")
@@ -149,9 +200,10 @@ class MediaService:
                     tmp.unlink(missing_ok=True)
                     raise
                 log.info(
-                    "downloaded %s (%s)", safe_url(url), human_size(downloaded)
+                    "downloaded %s (%s)%s", safe_url(url), human_size(downloaded),
+                    " [HLS]" if is_hls else "",
                 )
-                return dest
+                return dest, is_hls
         except AppError:
             raise
         except (aiohttp.ClientError, asyncio.TimeoutError) as e:

@@ -13,6 +13,9 @@ website/admin panel ki zarurat nahi.
 | 📚 Course list + details (videos/pdfs/chapters counts) | §6, §7 |
 | 📋 Content tree (chapters → items) browse + pagination | §8, §9 |
 | 📄 TXT export — complete / videos-only / PDFs-only / selected chapters / multi-course | §10-12, §34-35 |
+| 🔗 TXT reference modes — `base` (safe) ya `full` (signed working links) | §10 |
+| 🎬 m3u8/HLS support — ffmpeg remux (content-type detect) | §13, §37 |
+| 🛡 DRM detection → clean fail, job continue + Retry/Skip | §13, §18 |
 | 📤 TXT Telegram document delivery + temp delete | §11 |
 | ⚙️ Media jobs — chapter selection → queue → sequential worker | §14-15 |
 | 📊 Progress message (edit, nayi message nahi) | §16 |
@@ -136,11 +139,80 @@ Sab `.env.example` me documented hain. Important:
 | `MAX_RETRIES` | `3` | Retry attempts |
 | `MAX_UPLOAD_MB` | `1950` | Telegram upload limit |
 | `EXPORT_MODE` | `single` | `single` = ek file, `separate` = per-course file |
+| `TXT_REFERENCE_MODE` | `base` | `base` = host+path (signed params hatao) · `full` = signed URL bhi (working links) |
 | `FILE_TTL_HOURS` | `24` | Temp file TTL |
 
 > **Note:** Agar aapke platform ke real API paths defaults se alag hain, to unhe
 > `.env` me set karein — response JSON ke common shapes (data/result/payload,
 > token/access_token/jwt) client automatically normalize karta hai.
+
+## 📄 TXT export — links kaise hongi?
+
+TXT me har item ke saath `Authorized reference:` likhi jati hai. Kaunsi link
+milti hai ye `TXT_REFERENCE_MODE` par depend karta hai:
+
+```txt
+APPX COURSE
+============
+
+Course: Physics
+
+Chapter 01
+----------
+
+VIDEO 01
+Title: Motion
+Type: video
+Authorized reference: https://cdn.classx.co.in/media/phy/01/motion.mp4
+```
+
+- **`base` (default):** sirf `host/path` — signed query params (`?token=..&sig=..`)
+  TXT me nahi jate. Signed URL wale platforms par ye link akele kaam nahi
+  karegi — wo ek identifier/reference hai. Media ke liye job system use karo.
+- **`full`:** complete platform-provided reference — signed URL bhi included,
+  isliye **working links** milengi. TXT ke header me note hota hai:
+  *"links sirf account-owner ke personal authorized use ke liye; expire ho
+  sakti hain"*. Password/session token/cookies kabhi nahi — sirf media
+  reference.
+- **Best practice:** TXT = index/reference list. Actual download ke liye
+  `[⚙️ Create Media Job]` — authorized session ke saath, isliye signed URL
+  expire hone par bhi kaam karta hai.
+
+## 🎬 m3u8 / HLS links kaise handle hoti hain?
+
+1. **TXT export:** reference sanitized likhi jati hai (base mode me
+   `https://host/path/stream.m3u8`).
+2. **Media job:** HLS detect hota hai jab URL `.m3u8`/`.m3u` se end ho YA
+   response Content-Type HLS ho (extension ke bina bhi, e.g. `/playlist?token=..`).
+3. ffmpeg se remux:
+   ```bash
+   ffmpeg -i "<m3u8 url>" -c copy -bsf:a aac_adtstoasc output.mp4
+   ```
+   `-c copy` = re-encode nahi, sirf remux (fast, CPU-light) → mp4 Telegram par
+   upload → temp files delete.
+4. ffmpeg nahi hai to clean error: *"HLS processing requires ffmpeg."*
+   (Docker image me ffmpeg pre-installed hai.)
+
+## 🛡 DRM-protected content ka kya hota hai?
+
+- Reference me DRM indicators detect hote hain: `widevine`, `playready`,
+  `fairplay`, `clearkey`, license server, `.mpd`, `drm=...`
+- Response: `❌ Media cannot be processed through the available authorized
+  method.` (code: `drm_protected`)
+- **Bypass kabhi nahi** — PRD §13/§43 hard rule hai (ye illegal hai).
+- Item fail → job **continue** karta hai → `[🔄 Retry] [⏭️ Skip] [📊 Job Status]`.
+
+## 🔍 Course ke andar "classes" kaise find hote hain?
+
+Client response ke common keys ko automatically detect karta hai:
+
+- **Chapters/classes:** `chapters, modules, sections, units, topics, batches, classes`
+- **Items:** `items, content, videos, pdfs, resources, lectures, lessons, classes, sessions`
+- **Titles:** `title, name, subject, topic, label` · **IDs:** `id, course_id, uuid, video_id`
+- **Media refs:** `secure_url, video_url, m3u8, hls_url, stream_url, pdf_url, file_url, download_url, link`
+
+Agar aapke platform ka structure alag hai → `PLATFORM_*` paths/keys `.env` me
+override karo.
 
 ## 🔌 ClassX/AppX API adapter
 
@@ -185,7 +257,7 @@ Sab `.env.example` me documented hain. Important:
 ## 🧪 Testing
 
 ```bash
-python main.py --selftest      # 19 end-to-end checks (login→jobs→cleanup)
+python main.py --selftest      # 22 end-to-end checks (login→jobs→cleanup→DRM→signed URLs)
 python tests/smoke_bot.py      # Telegram UI flow (mocked bot)
 python main.py --check         # config + registry check
 ```

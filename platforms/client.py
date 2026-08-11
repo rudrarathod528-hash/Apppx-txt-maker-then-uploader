@@ -258,20 +258,22 @@ class PlatformClient:
 
     def _find_chapters(self, payload: Any) -> list:
         if isinstance(payload, dict):
-            for key in ("chapters", "modules", "sections", "units", "topics"):
+            for key in ("chapters", "modules", "sections", "units", "topics", "batches", "classes"):
                 v = payload.get(key)
                 if isinstance(v, list) and v:
                     return v
         found = find_list(payload) or []
         # list of chapter-ish dicts (title + items) chahiye
         chapters = [x for x in found if isinstance(x, dict) and (
-            any(k in x for k in ("chapters", "items", "videos", "content", "resources"))
+            any(k in x for k in ("chapters", "items", "videos", "content", "resources",
+                                 "lectures", "lessons", "classes"))
         )]
         return chapters or []
 
     def _find_items(self, raw_ch: Any) -> list:
         if isinstance(raw_ch, dict):
-            for key in ("items", "content", "videos", "pdfs", "resources", "lectures", "lessons", "data"):
+            for key in ("items", "content", "videos", "pdfs", "resources",
+                        "lectures", "lessons", "classes", "sessions", "data"):
                 v = raw_ch.get(key)
                 if isinstance(v, list) and v:
                     return v

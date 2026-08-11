@@ -288,10 +288,28 @@ TXT MUST NOT contain:
     - Password
     - Raw authentication credentials
     - Private session secrets
-    - Access tokens
     - Cookies
     - Internal security headers
     - Another user's data
+
+REFERENCE MODE (configurable — TXT_REFERENCE_MODE):
+
+    base (DEFAULT, PRD-safe):
+        Authorized reference: https://host/path/file.mp4
+        (query params — signed tokens/sig/expires — TXT me nahi jate)
+        → link ek identifier/reference ki tarah kaam karti hai;
+          media download ke liye bot ka job system use karo.
+
+    full (working-links mode):
+        Authorized reference: https://host/path/file.mp4?token=..&sig=..&expires=..
+        (platform-provided complete reference, signed URL bhi included)
+        → TXT me header note add hota hai: links sirf account-owner ke
+          personal authorized use ke liye; expire ho sakti hain.
+        → password/session token/cookies kabhi nahi — sirf media reference.
+
+    User ko TXT milne ke baad bhi media ke liye [⚙️ Create Media Job]
+    recommended hai — kyunki signed URLs expire hote hain aur download
+    authorized session ke saath hota hai.
 
 
 ================================================================
@@ -356,15 +374,28 @@ Flow:
 Supported:
     - Direct downloadable media (mp4, mkv, webm, ...)
     - Platform-provided downloadable resources
-    - HLS/DASH (.m3u8) — jab access/processing officially permitted ho
-      (ffmpeg `-c copy` remux; DRM-free streams)
+    - HLS/DASH (.m3u8 / HLS content-type) — jab access/processing
+      officially permitted ho (ffmpeg `-c copy` remux; DRM-free streams)
     - PDF and other supported formats
 
-DRM:
-    DRM-protected content + koi official permitted method nahi →
-    bypass attempt NAHI hota.
-    Response: "❌ Media cannot be processed through the available
-    authorized method."
+HLS (.m3u8) HANDLING:
+    Detect: URL .m3u8/.m3 se end ho YA response Content-Type HLS ho
+    (extension ke bina bhi — e.g. /playlist?token=..).
+    Process: ffmpeg -i "<url>" -c copy -bsf:a aac_adtstoasc out.mp4
+      (re-encode NAHI — sirf remux; CPU-light)
+    ffmpeg missing → clean error: "HLS processing requires ffmpeg."
+    Docker image me ffmpeg pre-installed hai.
+    Auth header (agar same-host signed stream ho) ffmpeg ko -headers se
+    pass hota hai.
+
+DRM DETECTION + HANDLING:
+    Reference/URL me DRM indicators mile (widevine, playready, fairplay,
+    clearkey, license server, .mpd, drm=...) →
+        ❌ Media cannot be processed through the available authorized
+           method.   (code: drm_protected)
+    DRM bypass attempt KABHI NAHI hota.
+    Item fail hota hai — job rukta nahi, baaki items continue:
+        [🔄 Retry] [⏭️ Skip] [📊 Job Status]
 
 
 ================================================================
@@ -854,6 +885,10 @@ Upload se pehle file size check:
     - Bada upload (2 GB tak) → local Bot API server / api id+hash
       path documented (PRD §37, README me)
 
+HLS stream media job me:
+    playlist (m3u8) download → size check → ffmpeg remux → mp4 size
+    check → Telegram upload → playlist + mp4 delete.
+
 
 ================================================================
 38. USER EXPERIENCE — COMPLETE EXAMPLE
@@ -967,9 +1002,21 @@ COURSES:
     GET {base}{courses_path}  (authorized)
     → normalize → [{course_id, title, ...}]
 
-CONTENT:
+CONTENT / COURSE CLASSES DISCOVERY:
     GET {base}{content_path.format(course_id=...)}
-    → normalize → chapters → items (video/pdf/other) → references
+    → normalize → chapters/classes → items (video/pdf/other) → references
+
+    Course ke andar "classes" kaise find hote hain:
+      - API response ke common keys automatically detect hote hain:
+        chapters, modules, sections, units, topics, batches, classes
+      - Har chapter/class ke andar items: items, content, videos, pdfs,
+        resources, lectures, lessons, classes, sessions
+      - Titles: title, name, course_name, subject, topic, label
+      - IDs: id, course_id, content_id, uuid, slug, video_id
+      - Media references: secure_url, video_url, url, m3u8, hls_url,
+        stream_url, pdf_url, file_url, download_url, source_url, link
+      - Agar aapke platform ka structure alag ho → PLATFORM_* paths aur
+        PLATFORM_LOGIN_* keys .env se override karo (README dekhein).
 
 MEDIA RESOLVE:
     Item me platform-provided fields: video_url / m3u8 / pdf_url /
@@ -1043,6 +1090,12 @@ MVP successful tab maana jayega jab:
 15. Logout ke baad session securely clear ho.
 16. Ek telegram user dusre user ka data access na kar sake.
 17. Bot bina crash 24x7 chale (graceful error handling).
+18. TXT me signed URLs (working links) config se on/off ho saken
+    (TXT_REFERENCE_MODE=full) bina password/session secrets ke.
+19. m3u8/HLS links media job me ffmpeg se mp4 ban kar Telegram par
+    milein (ya clean error agar ffmpeg missing ho).
+20. DRM-protected content detect ho kar clean fail ho — job continue
+    kare, Retry/Skip mile; bypass kabhi na ho.
 
 
 ================================================================
