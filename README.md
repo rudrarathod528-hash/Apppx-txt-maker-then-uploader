@@ -127,6 +127,8 @@ Sab `.env.example` me documented hain. Important:
 | Variable | Default | Meaning |
 |---|---|---|
 | `BOT_TOKEN` | — | @BotFather token (live mode me required) |
+| `ADMIN_IDS` | — | Owner/admin Telegram IDs — `/admin` access |
+| `UPLOAD_CHANNEL_ID` | — | Files (media + TXT) is channel me jayengi; bot ko channel me admin hona chahiye |
 | `PLATFORM_MODE` | `live` | `live` ya `mock` |
 | `PLATFORM_BASE_URL` | — | Single-tenant ho to set karo; warna registry se auto |
 | `PLATFORM_LOGIN_PATH` | `/api/v1/login` | Login endpoint path |
@@ -199,8 +201,22 @@ Authorized reference: https://cdn.classx.co.in/media/phy/01/motion.mp4
   `fairplay`, `clearkey`, license server, `.mpd`, `drm=...`
 - Response: `❌ Media cannot be processed through the available authorized
   method.` (code: `drm_protected`)
-- **Bypass kabhi nahi** — PRD §13/§43 hard rule hai (ye illegal hai).
+- **Bypass kabhi nahi** — PRD §13/§43 hard rule hai (ye illegal hai: DMCA
+  §1201 / India Copyright Act §65A TPM-circumvention offense hai; account
+  hona ya bug-bounty kaam karna isse legal nahi banata).
+- Bug-bounty/testing wale: vulnerability report karte waqt mass content
+  extract nahi karte — chhota PoC (1-2 items) + report kafi hai.
 - Item fail → job **continue** karta hai → `[🔄 Retry] [⏭️ Skip] [📊 Job Status]`.
+
+## 📢 Channel delivery (`UPLOAD_CHANNEL_ID`)
+
+- Set karo to **media jobs ki files** aur **TXT exports** us channel me
+  jayengi — user DM ke bajaye.
+- Progress updates + final summary + failed-item notifications hamesha
+  **user ke DM** me rehte hain.
+- Bot ko channel me **admin** hona chahiye (channel id `@userinfobot` se lo).
+- Note: Telegram **bot** upload limit ~50MB hai; bade files ke liye
+  local Bot API server ya userbot path (PRD §37) use karein.
 
 ## 🔍 Course ke andar "classes" kaise find hote hain?
 

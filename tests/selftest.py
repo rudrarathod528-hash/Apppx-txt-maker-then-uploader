@@ -29,6 +29,7 @@ os.environ.update({
     "MAX_RETRIES": "3",
     "RETRY_BACKOFF_SEC": "0,0,0",
     "JOBS_RETENTION_DAYS": "30",
+    "UPLOAD_CHANNEL_ID": "777777",
 })
 
 from config import load_config  # noqa: E402
@@ -49,6 +50,7 @@ TG_B = 222222
 class FakeGateway(BaseGateway):
     def __init__(self) -> None:
         self.documents: list[str] = []
+        self.document_chats: list[int] = []
         self.messages: list[str] = []
         self.edits: list[str] = []
         self._msg_id = 100
@@ -72,6 +74,7 @@ class FakeGateway(BaseGateway):
             self.fail_documents[name] -= 1
             return SendResult(ok=False, error="telegram_error")
         self.documents.append(name)
+        self.document_chats.append(chat_id)
         return SendResult(ok=True, message_id=self._next_id())
 
     async def delete_message(self, chat_id, message_id) -> SendResult:
@@ -320,6 +323,21 @@ async def run_selftest() -> int:
         job_dir = Path(cfg.job_dir) / job["job_id"]
         assert not job_dir.exists() or not any(job_dir.iterdir()), "temp files not cleaned!"
     await t("job: create → sequential worker → 9/9 delivered → files cleaned", test_job_lifecycle)
+
+    async def test_channel_delivery() -> None:
+        """UPLOAD_CHANNEL_ID set ho to media channel par jaye, progress DM me."""
+        courses = await ctx.courses.list_courses(session, TG_A)
+        tree = await ctx.content.get_tree(session, TG_A, courses[0])
+        items = [it for it in tree.flatten() if it.reference]
+        job = await ctx.jobs.create_job(session, TG_A, courses[0], items)
+        await drain()
+        job = ctx.jobs.get_job(job["job_id"], TG_A)
+        assert job["status"] == "completed"
+        assert gateway.document_chats, "koi document deliver nahi hua"
+        assert all(c == 777777 for c in gateway.document_chats), gateway.document_chats
+        # progress DM me gaya (telegram_user_id par send_message/edit)
+        assert any("JOB" in m and "APPX" in m for m in gateway.messages + gateway.edits)
+    await t("delivery: media → channel (777777), progress → user DM", test_channel_delivery)
 
     async def test_job_retry() -> None:
         courses = await ctx.courses.list_courses(session, TG_A)

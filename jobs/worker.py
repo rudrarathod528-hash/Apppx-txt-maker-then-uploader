@@ -211,8 +211,11 @@ class Worker:
                 return False, last_error  # unexpected — non-retryable, fail fast
 
             if file_path and file_path.exists():
+                # Delivery target: channel set hai to wahan, warna user DM
+                # (progress/notifications hamesha user DM me hi rehte hain)
+                target_chat = self.cfg.upload_channel_id or job["telegram_user_id"]
                 res = await self.gateway.send_document(
-                    job["telegram_user_id"], str(file_path),
+                    target_chat, str(file_path),
                     filename=file_path.name,
                     caption=f"📚 {job['course_title']}\n📂 {item['chapter']}\n🎯 {item['title']}",
                 )

@@ -711,6 +711,8 @@ If full:
 
     BOT_TOKEN                  (required)
     ADMIN_IDS                  (comma-separated telegram ids)
+    UPLOAD_CHANNEL_ID          (optional; media/TXT is channel me jaye —
+                                bot ko channel me admin hona chahiye)
 
     PLATFORM_MODE              = live | mock   (default: live)
     PLATFORM_BASE_URL          (optional; override for single-tenant)
@@ -730,6 +732,7 @@ If full:
     MAX_ACTIVE_JOBS            = 5
     MAX_JOBS_PER_USER          = 3
     EXPORT_MODE                = single | separate  (default: single)
+    TXT_REFERENCE_MODE         = base | full  (default: base)
 
     ENCRYPTION_KEY             (Fernet key; auto-generate if missing)
     LOG_LEVEL                  = INFO
@@ -1054,7 +1057,9 @@ MOCK MODE (PLATFORM_MODE=mock):
 ================================================================
 
 This system is explicitly designed to NEVER:
-    - bypass DRM
+    - bypass DRM (DMCA §1201 / India Copyright Act §65A — TPM
+      circumvention offense hai; account hona ya bug-bounty kaam
+      karna isse legal nahi banata)
     - defeat access controls
     - steal cookies / tokens
     - harvest credentials
@@ -1062,6 +1067,11 @@ This system is explicitly designed to NEVER:
     - access courses unavailable to the authenticated account
     - bypass CAPTCHA or anti-bot protections
     - expose private session information
+
+BUG BOUNTY / SECURITY TESTING NOTE:
+    Authorized testing ke liye vulnerability report ka matlab hota hai —
+    chhota PoC (1-2 items) + report. Mass content extraction / DRM
+    circumvention kisi bhi bug-bounty scope me kabhi nahi hota.
 
 Agar content authorized method se process nahi ho sakta → clean
 error message + item fail. Koi workaround nahi.

@@ -798,11 +798,7 @@ async def _run_export(tg_id: int, cb: CallbackQuery, course_idx: int, kind: str,
             session, tg_id, [course], kind=kind, chapter_idx=chapter_idx, export_id=export_id
         )
         await _edit(cb, msg.EXPORT_READY, None)
-        for f in files:
-            try:
-                await ctx.bot.send_document(tg_id, FSInputFile(f))
-            except TelegramAPIError:
-                ctx.stats["tg_errors"] += 1
+        await _deliver_documents(tg_id, files)
     except AppError as e:
         await _edit(cb, msg.EXPORT_ERROR.format(reason=safe_error_message(e)))
     except Exception as e:
@@ -815,6 +811,21 @@ async def _run_export(tg_id: int, cb: CallbackQuery, course_idx: int, kind: str,
                 ctx.exports.delete_export(export_id)
             except Exception:
                 pass
+
+
+async def _deliver_documents(tg_id: int, files) -> None:
+    """Files delivery: channel set hai to channel par, warna DM.
+    DM me confirmation chalti hai."""
+    target = ctx.cfg.upload_channel_id or tg_id
+    for f in files:
+        try:
+            await ctx.bot.send_document(target, FSInputFile(f))
+        except TelegramAPIError:
+            ctx.stats["tg_errors"] += 1
+            await _send(tg_id, f"❌ <code>{f.name}</code> upload fail ho gaya.")
+            continue
+        if ctx.cfg.upload_channel_id:
+            await _send(tg_id, f"📄 <code>{f.name}</code> channel par bhej diya ✅")
 
 
 async def _run_export_multi(tg_id: int, cb: CallbackQuery, course_idxs: list[int]) -> None:
@@ -833,11 +844,7 @@ async def _run_export_multi(tg_id: int, cb: CallbackQuery, course_idxs: list[int
             session, tg_id, selected_courses, kind="complete", chapter_idx=None, export_id=export_id
         )
         await _edit(cb, msg.EXPORT_READY, None)
-        for f in files:
-            try:
-                await ctx.bot.send_document(tg_id, FSInputFile(f))
-            except TelegramAPIError:
-                ctx.stats["tg_errors"] += 1
+        await _deliver_documents(tg_id, files)
     except AppError as e:
         await _edit(cb, msg.EXPORT_ERROR.format(reason=safe_error_message(e)))
     except Exception as e:

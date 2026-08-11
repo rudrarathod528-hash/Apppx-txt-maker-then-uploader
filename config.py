@@ -35,6 +35,16 @@ def _env_bool(name: str, default: bool = False) -> bool:
     return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
+def _env_int_or_none(name: str) -> int | None:
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return None
+    try:
+        return int(raw.strip())
+    except ValueError:
+        return None
+
+
 def _env_list(name: str, default: list[str] | None = None) -> list[str]:
     raw = os.getenv(name)
     if raw is None or not raw.strip():
@@ -47,6 +57,9 @@ class Config:
     # --- Telegram ---
     bot_token: str = ""
     admin_ids: list[int] = field(default_factory=list)
+    # Delivery target: set karo to media/exports is channel me jayengi
+    # (user DM ke bajaye). Channel me bot ko admin hona chahiye.
+    upload_channel_id: int | None = None
 
     # --- Platform ---
     platform_mode: str = "live"  # live | mock
@@ -132,6 +145,7 @@ def load_config() -> Config:
     cfg = Config(
         bot_token=_env_str("BOT_TOKEN"),
         admin_ids=[int(x) for x in _env_list("ADMIN_IDS") if x.isdigit()],
+        upload_channel_id=_env_int_or_none("UPLOAD_CHANNEL_ID"),
         platform_mode=_env_str("PLATFORM_MODE", "live").lower(),
         platform_base_url=_env_str("PLATFORM_BASE_URL") or None,
         login_path=_env_str("PLATFORM_LOGIN_PATH", "/api/v1/login"),
