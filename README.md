@@ -71,6 +71,52 @@ docker run -d --name appx-bot --env-file .env \
 
 Image me ffmpeg pre-installed hai (HLS processing ke liye).
 
+## 🚂 Railway Deployment
+
+> Repo me `Dockerfile` hai — Railway use automatically detect karke build karega
+> (ffmpeg included). Bot polling-based hai, koi public URL zaroori nahi;
+> `PORT` variable se optional health-check server chalta hai.
+
+### Railway UI me settings:
+
+| Setting | Value |
+|---|---|
+| **Source** | GitHub repo: `loginyttg-web/Apppx-txt-maker-then-uploader` |
+| **Root Directory** | *(khaali chhodo — repo root)* |
+| **Build** | Auto (Dockerfile detect hota hai; kuch nahi bharna) |
+| **Start Command** | `python main.py` |
+| **Volume** | Mount path: `/app/data` (SQLite DB persist karne ke liye) |
+
+### Railway Variables (add all):
+
+```env
+BOT_TOKEN=123456:AAH-xxxx            # @BotFather se — REQUIRED
+ADMIN_IDS=1234567890                 # aapka telegram id (optional)
+PLATFORM_MODE=live                   # live ya mock (test ke liye)
+ENCRYPTION_KEY=<Fernet key>          # generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+DATABASE_PATH=/app/data/appx.db
+EXPORT_DIR=/tmp/appx/exports
+JOB_DIR=/tmp/appx/jobs
+MAX_ACTIVE_JOBS=3
+MAX_JOBS_PER_USER=3
+MAX_RETRIES=3
+FILE_TTL_HOURS=24
+LOG_LEVEL=INFO
+PORT=8000                            # optional — health check (/health)
+```
+
+Optional platform overrides (agar aapke tenant ke paths alag hain):
+
+```env
+PLATFORM_BASE_URL=https://aashapi.appx.co.in
+PLATFORM_LOGIN_PATH=/api/v1/login
+PLATFORM_COURSES_PATH=/api/v1/user/courses
+PLATFORM_CONTENT_PATH=/api/v1/course/{course_id}/content
+```
+
+Deploy hone ke baad apne bot ko Telegram par `/start` karke test karein.
+Logs Railway dashboard ke **Deploy Logs** me dekhein.
+
 ## 🔧 Environment variables
 
 Sab `.env.example` me documented hain. Important:

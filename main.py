@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import signal
 import sys
 
@@ -86,8 +87,38 @@ def _build_context(cfg: Config, bot=None, gateway=None) -> None:
     ctx.gateway = gateway
 
 
+async def _run_health_server():
+    """Optional lightweight health server — Railway/Paas PORT env set ho to.
+
+    Bot ka Telegram polling hi asli kaam hai; ye sirf hosting platforms ke
+    health-check ke liye hai (deploy "healthy" dikhne ke liye)."""
+    port = int(os.getenv("PORT", "0") or "0")
+    if port <= 0:
+        return None
+    from aiohttp import web
+
+    async def health(_request):
+        return web.json_response({"ok": True, "service": "appx-course-bot"})
+
+    app = web.Application()
+    app.router.add_get("/health", health)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    log.info("health server started on :%d", port)
+    return runner
+
+
 async def _run_bot(cfg: Config) -> None:
-    bot = Bot(token=cfg.bot_token)
+    token = cfg.bot_token
+    if not token:
+        if cfg.platform_mode == "mock":
+            token = "123456:DUMMY-TOKEN-FOR-MOCK-MODE"  # demo boot (polling fail hoga, app chalega)
+        else:
+            log.error("BOT_TOKEN required in live mode")
+            return
+    bot = Bot(token=token)
     _build_context(cfg, bot=bot)
     await ctx.client.start()
     await ctx.media.start()
@@ -95,6 +126,8 @@ async def _run_bot(cfg: Config) -> None:
     ctx.jobs.requeue_all_active()
     ctx.worker.start()
     ctx.cleanup.start()
+
+    health_runner = await _run_health_server()
 
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(handlers.router)
@@ -127,6 +160,8 @@ async def _run_bot(cfg: Config) -> None:
         await ctx.cleanup.stop()
         await ctx.client.stop()
         await ctx.media.stop()
+        if health_runner:
+            await health_runner.cleanup()
         await bot.session.close()
         ctx.db.close()
 
