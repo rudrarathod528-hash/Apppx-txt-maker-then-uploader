@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/
+.git/
+.gitignore
+README.md
+Project PRD.txt
+tests/
