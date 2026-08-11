@@ -1,0 +1,1783 @@
+============================================================
+                 PRD — APPX COURSE BOT
+              IMPROVED TELEGRAM-FIRST v2.0
+============================================================
+
+PRODUCT TYPE:
+Telegram-based Authorized Course Management & Media Processing Bot
+
+PRIMARY OBJECTIVE:
+User apne authorized course account ko Telegram ke through login kare,
+available courses dekhe, course ka complete content list generate kare,
+TXT file Telegram par receive kare, aur authorized/officially accessible
+media ko optionally process karke Telegram par receive kar sake.
+
+CORE PRINCIPLE:
+
+Telegram is the complete user interface.
+
+User ko website/admin panel par jaane ki zarurat nahi honi chahiye.
+
+Telegram
+   ↓
+Login
+   ↓
+Account
+   ↓
+Courses
+   ↓
+Course Content
+   ↓
+TXT Export
+   ↓
+Optional Media Job
+   ↓
+Telegram Delivery
+
+
+============================================================
+1. COMPLETE USER FLOW
+============================================================
+
+/start
+
+        ↓
+
+LOGIN SCREEN
+
+Bot:
+
+🔐 APPX Course Login
+
+Apna authorized Course ID/Username bhejiye.
+
+User:
+XXXXXXXX
+
+Bot:
+
+Password bhejiye.
+
+User:
+********
+
+        ↓
+
+AUTHENTICATION
+
+        ↓
+
+SUCCESS
+
+Bot:
+
+✅ Login Successful
+
+👤 Account: Demo User
+📚 Available Courses: 12
+
+[📚 View Courses]
+
+
+============================================================
+2. CREDENTIAL HANDLING
+============================================================
+
+User credentials sirf authentication ke liye use honge.
+
+FLOW:
+
+Username/ID
+     ↓
+Password
+     ↓
+Platform Login API
+     ↓
+Authentication
+     ↓
+Session / Access Token
+     ↓
+Password immediately discard
+
+PASSWORD:
+
+NOT STORED
+NOT LOGGED
+NOT INCLUDED IN TXT
+NOT INCLUDED IN JOB DATA
+NOT INCLUDED IN TELEGRAM LOGS
+
+
+IMPORTANT:
+
+Bot ke database me password ka column hi nahi hoga.
+
+
+============================================================
+3. SESSION MANAGEMENT
+============================================================
+
+Successful login ke baad backend authorized session maintain karega.
+
+Stored data:
+
+telegram_user_id
+user_id
+tenant_id (if returned by platform)
+encrypted_session_reference
+token_expiry
+created_at
+updated_at
+
+Raw password:
+
+NEVER STORE
+
+
+SESSION FLOW:
+
+Valid Session
+      ↓
+Continue normally
+
+Expired Session
+      ↓
+Bot:
+
+⚠️ Session expired.
+
+Please login again.
+
+[🔐 Login]
+
+
+============================================================
+4. USER IDENTITY
+============================================================
+
+Telegram account ko primary bot identity maana jayega.
+
+Example:
+
+telegram_user_id
+        ↓
+Application User
+        ↓
+Authorized Platform Account
+
+
+User ko manually:
+
+tenant_id
+user_id
+API token
+session ID
+
+enter karne ki zarurat nahi honi chahiye.
+
+Agar platform authentication response me user/tenant information
+provide karta hai to backend automatically map karega.
+
+
+============================================================
+5. MAIN TELEGRAM MENU
+============================================================
+
+After login:
+
+🏠 APPX Course Bot
+
+👤 Account
+📚 My Courses
+📋 Content
+📄 Export TXT
+⚙️ Jobs
+🚪 Logout
+
+Buttons:
+
+[📚 My Courses]
+[📋 Content]
+[📄 Export TXT]
+[⚙️ Jobs]
+[👤 Account]
+[🚪 Logout]
+
+
+============================================================
+6. COURSE LIST
+============================================================
+
+User:
+
+📚 My Courses
+
+Backend:
+
+Authorized Session
+      ↓
+Course API
+      ↓
+Permission Check
+      ↓
+Course List
+      ↓
+Telegram
+
+
+Example:
+
+📚 YOUR COURSES
+
+1️⃣ Physics
+2️⃣ Mathematics
+3️⃣ Chemistry
+4️⃣ Reasoning
+5️⃣ English
+
+Each course should have an inline button.
+
+Example:
+
+[Physics]
+[Maths]
+[Chemistry]
+
+Pagination:
+
+[⬅️ Previous] [Next ➡️]
+
+
+============================================================
+7. COURSE DETAILS
+============================================================
+
+User selects:
+
+Physics
+
+Bot:
+
+📚 PHYSICS
+
+Videos: 84
+PDFs: 21
+Chapters: 18
+
+[📋 View Content]
+[📄 Generate TXT]
+[⚙️ Create Media Job]
+[⬅️ Back]
+
+
+============================================================
+8. CONTENT FETCHING
+============================================================
+
+Selected Course
+      ↓
+Authorized Course API
+      ↓
+Fetch chapters/modules
+      ↓
+Fetch available content metadata
+      ↓
+Normalize response
+      ↓
+Create internal content tree
+
+
+Internal structure:
+
+Course
+│
+├── Chapter 01
+│   ├── Video 01
+│   ├── Video 02
+│   └── PDF
+│
+├── Chapter 02
+│   ├── Video 01
+│   └── PDF
+│
+└── Chapter 03
+    ├── Video 01
+    ├── Video 02
+    └── PDF
+
+
+IMPORTANT:
+
+Only content returned as accessible to the authenticated account
+will be included.
+
+
+============================================================
+9. CONTENT LIST IN TELEGRAM
+============================================================
+
+Example:
+
+📚 PHYSICS
+
+01. Chapter 1
+    🎬 5 Videos
+    📄 2 PDFs
+
+02. Chapter 2
+    🎬 7 Videos
+    📄 1 PDF
+
+03. Chapter 3
+    🎬 4 Videos
+    📄 3 PDFs
+
+[📄 Export Complete TXT]
+[⬇️ Select Chapter]
+[⚙️ Create Job]
+[⬅️ Back]
+
+
+============================================================
+10. TXT EXPORT — IMPORTANT FEATURE
+============================================================
+
+User:
+
+[📄 Export Complete TXT]
+
+Bot:
+
+⏳ Generating content list...
+
+Backend:
+
+Course
+ ↓
+Authorized Content API
+ ↓
+Normalize metadata
+ ↓
+Generate TXT
+ ↓
+Temporary TXT file
+ ↓
+Telegram document upload
+ ↓
+Temporary TXT delete
+
+
+Example filename:
+
+physics_course.txt
+
+
+TXT CONTENT:
+
+APPX COURSE
+============
+
+Course: Physics
+
+Chapter 01
+----------
+
+Video 01
+Title: Motion
+Type: video
+Authorized reference: <platform-provided-reference>
+
+Video 02
+Title: Force
+Type: video
+Authorized reference: <platform-provided-reference>
+
+PDF 01
+Title: Chapter Notes
+Type: pdf
+Authorized reference: <platform-provided-reference>
+
+
+Chapter 02
+----------
+
+...
+
+
+IMPORTANT:
+
+TXT will contain only information needed to identify/reference
+authorized content.
+
+TXT MUST NOT contain:
+
+- Password
+- Raw authentication credentials
+- Private session secrets
+- Access tokens
+- Cookies
+- Internal security headers
+- Another user's data
+
+
+============================================================
+11. TXT FILE DELIVERY
+============================================================
+
+Generated TXT:
+
+/tmp/exports/{job_id}/physics_course.txt
+
+Telegram:
+
+📄 Your TXT file is ready.
+
+[physics_course.txt]
+
+
+After successful Telegram upload:
+
+DELETE temporary TXT.
+
+
+============================================================
+12. SELECTIVE TXT EXPORT
+============================================================
+
+User can export:
+
+A. Complete course
+B. Selected chapters
+C. Selected content types
+D. Selected items
+
+
+Example:
+
+📄 Export Options
+
+[📚 Complete Course]
+[🎬 Videos Only]
+[📄 PDFs Only]
+[📂 Selected Chapters]
+
+Then:
+
+Select chapters:
+
+☑ Chapter 1
+☑ Chapter 2
+☐ Chapter 3
+
+[Generate TXT]
+
+
+============================================================
+13. MEDIA PROCESSING
+============================================================
+
+Only authorized/officially accessible media may be processed.
+
+Flow:
+
+Selected Content
+      ↓
+Check authenticated access
+      ↓
+Resolve platform-provided media resource
+      ↓
+Download/process using permitted method
+      ↓
+Temporary file
+      ↓
+Telegram upload
+      ↓
+Delete temporary file
+
+
+Supported examples:
+
+- Direct downloadable media
+- Platform-provided downloadable resources
+- HLS/DASH when access and processing are officially permitted
+- PDF
+- Other supported media formats
+
+
+DRM:
+
+If content is DRM-protected and no official permitted download/export
+method is available:
+
+DO NOT attempt to bypass DRM.
+
+Instead:
+
+❌ Media cannot be processed through the available authorized method.
+
+
+============================================================
+14. MEDIA JOB SYSTEM
+============================================================
+
+User selects:
+
+[⚙️ Create Media Job]
+
+Example:
+
+Course: Physics
+Selected: 25 Videos
+
+Bot:
+
+⚙️ Job Created
+
+Job ID: APPX-8F31
+
+Items: 25
+Status: Queued
+
+[📊 View Status]
+[❌ Cancel]
+
+
+QUEUE:
+
+Telegram User
+      ↓
+Create Job
+      ↓
+Queue
+      ↓
+Worker
+      ↓
+Process One Item
+      ↓
+Upload Telegram
+      ↓
+Delete Temporary File
+      ↓
+Next Item
+
+
+============================================================
+15. SEQUENTIAL PROCESSING
+============================================================
+
+Default:
+
+SEQUENTIAL = ON
+
+
+Item 1
+ ↓
+Process
+ ↓
+Upload
+ ↓
+Delete
+ ↓
+Item 2
+ ↓
+Process
+ ↓
+Upload
+ ↓
+Delete
+ ↓
+Item 3
+
+
+Advantages:
+
+- Low RAM usage
+- Low disk usage
+- Easier error handling
+- Less server load
+- Suitable for small hosting plans
+
+
+============================================================
+16. PROGRESS SYSTEM
+============================================================
+
+Bot message:
+
+⚙️ PROCESSING
+
+Course: Physics
+
+━━━━━━━━━━━━━━━━
+
+Completed: 12/50
+Failed: 1
+Remaining: 37
+
+Current:
+Chapter 04 - Video 03
+
+Status:
+⬆️ Uploading...
+
+
+Message should be edited periodically instead of sending
+a new Telegram message for every progress update.
+
+
+============================================================
+17. FAILED ITEM HANDLING
+============================================================
+
+If one item fails:
+
+❌ Video 17 failed
+
+Reason:
+Access unavailable / network error / processing error
+
+Buttons:
+
+[🔄 Retry]
+[⏭️ Skip]
+[📊 Job Status]
+
+
+The entire job should NOT fail because one item failed.
+
+
+============================================================
+18. RETRY SYSTEM
+============================================================
+
+Retryable errors:
+
+- Temporary network error
+- Timeout
+- Telegram upload timeout
+- Temporary server error
+
+
+Example:
+
+Attempt 1
+   ↓
+Failed
+   ↓
+Wait
+   ↓
+Attempt 2
+   ↓
+Failed
+   ↓
+Attempt 3
+   ↓
+Mark Failed
+
+
+Maximum retry count:
+
+DEFAULT = 3
+
+
+Non-retryable errors:
+
+- Unauthorized
+- Content unavailable
+- Permission denied
+- Unsupported media
+
+
+============================================================
+19. STORAGE
+============================================================
+
+Temporary directory:
+
+/tmp/appx/jobs/{job_id}/
+
+Example:
+
+/tmp/appx/jobs/APPX-8F31/item-001
+/tmp/appx/jobs/APPX-8F31/item-002
+
+
+Processing rule:
+
+Download
+ ↓
+Process
+ ↓
+Upload
+ ↓
+Verify Telegram upload
+ ↓
+Delete local file
+
+
+Server should never maintain unnecessary permanent copies.
+
+
+============================================================
+20. AUTOMATIC CLEANUP
+============================================================
+
+Cleanup worker:
+
+Every scheduled interval:
+
+Find expired temporary files
+        ↓
+Delete
+        ↓
+Update cleanup log
+
+
+Default:
+
+FILE_TTL = 24 HOURS
+
+
+Completed jobs should be cleaned sooner whenever possible.
+
+
+============================================================
+21. DATABASE — MINIMAL DESIGN
+============================================================
+
+TABLE: users
+
+telegram_user_id
+platform_user_id
+tenant_id
+encrypted_session_reference
+session_expiry
+created_at
+updated_at
+
+
+TABLE: courses
+
+course_id
+tenant_id
+title
+updated_at
+
+
+TABLE: jobs
+
+job_id
+telegram_user_id
+course_id
+status
+total
+completed
+failed
+created_at
+updated_at
+
+
+TABLE: job_items
+
+item_id
+job_id
+content_id
+title
+type
+status
+retry_count
+error_code
+created_at
+updated_at
+
+
+STORE and send to telegram user/owner
+
+password
+raw JWT
+cookies
+unnecessary API request dumps
+private credentials
+
+
+============================================================
+22. SECURITY
+============================================================
+
+REQUIRED:
+
+✓ HTTPS
+✓ Secure session handling
+✓ Password never stored
+✓ Password never logged
+✓ Token/session expiry
+✓ Encryption for stored session references
+✓ Telegram user ownership check
+✓ Course authorization check
+✓ Content authorization check
+✓ Rate limiting
+✓ Temporary file cleanup
+✓ Job ownership validation
+✓ Input validation
+✓ Error sanitization
+
+
+LOGS MUST NOT CONTAIN:
+
+Password
+Authorization header
+Access token
+Cookie
+Private session data
+
+
+Example SAFE LOG:
+
+User 12345
+Course Physics
+Job APPX-8F31
+Item 17
+Status failed
+
+
+============================================================
+23. TELEGRAM OWNERSHIP
+============================================================
+
+Every job belongs to:
+
+telegram_user_id
+
+
+Therefore:
+
+User A
+
+CANNOT:
+
+- See User B jobs
+- Cancel User B jobs
+- Download User B exports
+- Access User B session
+- Access User B course data
+
+
+Every backend request must verify ownership.
+
+
+============================================================
+24. LOGOUT
+============================================================
+
+User:
+
+/logout
+
+Bot:
+
+🚪 Logout
+
+Are you sure?
+
+[Yes, Logout]
+[Cancel]
+
+
+Logout:
+
+Invalidate/revoke session if platform supports it
+        ↓
+Delete encrypted session reference
+        ↓
+Clear user session
+        ↓
+Delete temporary user files
+        ↓
+Return to login
+
+
+Bot:
+
+✅ Logged out successfully.
+
+
+============================================================
+25. COMMANDS
+============================================================
+
+/start
+/login
+/courses
+/mycourses
+/content
+/export
+/jobs
+/status
+/cancel
+/logout
+/help
+
+
+Recommended primary interaction:
+
+INLINE BUTTONS
+
+Commands should mainly be fallback/navigation methods.
+
+
+============================================================
+26. /STATUS
+============================================================
+
+User:
+
+/status
+
+Bot:
+
+⚙️ ACTIVE JOBS
+
+APPX-8F31
+
+Course:
+Physics
+
+Progress:
+37/50
+
+Completed:
+35
+
+Failed:
+2
+
+Current:
+Chapter 8 - Video 3
+
+[📊 Details]
+[❌ Cancel]
+
+
+============================================================
+27. /JOBS
+============================================================
+
+Bot:
+
+⚙️ JOB HISTORY
+
+1. APPX-8F31
+   Physics
+   50 items
+   ✅ Completed
+
+2. APPX-7A21
+   Maths
+   30 items
+   ⚠️ 2 Failed
+
+[View Details]
+
+
+============================================================
+28. CANCEL JOB
+============================================================
+
+User:
+
+/cancel APPX-8F31
+
+
+Bot:
+
+⚠️ Cancel this job?
+
+[Yes]
+[No]
+
+
+On confirmation:
+
+queued items
+      ↓
+cancel
+
+currently processing item
+      ↓
+stop safely if possible
+
+temporary files
+      ↓
+delete
+
+job status:
+CANCELLED
+
+
+============================================================
+29. RATE LIMITING
+============================================================
+
+Prevent accidental overload.
+
+Examples:
+
+Login attempts:
+Limited per Telegram user
+
+Course API:
+Limited
+
+Export:
+Limited
+
+Media jobs:
+Limited
+
+Concurrent jobs:
+
+DEFAULT = 999 ACTIVE JOB / USER
+
+
+============================================================
+30. GLOBAL JOB LIMIT
+============================================================
+
+To protect hosting:
+
+MAX_ACTIVE_JOBS = configurable
+
+Example:
+
+MAX_ACTIVE_JOBS = 9999
+
+
+If full:
+
+⏳ Server is currently busy.
+
+Your job has been added to the queue.
+
+
+============================================================
+31. CONFIGURATION
+============================================================
+
+Environment variables:
+
+BOT_TOKEN
+PLATFORM_BASE_URL
+PLATFORM_LOGIN_ENDPOINT
+PLATFORM_COURSE_ENDPOINT
+PLATFORM_CONTENT_ENDPOINT
+
+DATABASE_URL
+
+FILE_TTL_HOURS=24
+MAX_UPLOAD_MB=100
+
+MAX_RETRIES=3
+MAX_ACTIVE_JOBS=3
+
+LOG_LEVEL=INFO
+
+
+Secrets must be stored as environment variables,
+never hard-coded.
+
+
+============================================================
+32. BACKEND ARCHITECTURE
+============================================================
+
+                  TELEGRAM
+                      │
+                      ▼
+                TELEGRAM BOT
+                      │
+                      ▼
+                AUTH MANAGER
+                      │
+                      ▼
+              SESSION MANAGER
+                      │
+                      ▼
+             PLATFORM API CLIENT
+                      │
+             ┌────────┴────────┐
+             ▼                 ▼
+       COURSE SERVICE      CONTENT SERVICE
+             │                 │
+             └────────┬────────┘
+                      ▼
+                  JOB SERVICE
+                      │
+                      ▼
+                   QUEUE
+                      │
+                      ▼
+                   WORKER
+                      │
+                ┌─────┴─────┐
+                ▼           ▼
+          MEDIA PROCESS   TXT EXPORT
+                │           │
+                └─────┬─────┘
+                      ▼
+               TEMP STORAGE
+                      │
+                      ▼
+              TELEGRAM UPLOAD
+                      │
+                      ▼
+             DELETE TEMP FILE
+
+
+============================================================
+33. RECOMMENDED PROJECT STRUCTURE
+============================================================
+
+appx-course-bot/
+
+├── main.py
+├── config.py
+│
+├── bot/
+│   ├── handlers.py
+│   ├── keyboards.py
+│   ├── messages.py
+│   └── states.py
+│
+├── auth/
+│   ├── login.py
+│   └── session.py
+│
+├── services/
+│   ├── courses.py
+│   ├── content.py
+│   ├── export.py
+│   └── media.py
+│
+├── jobs/
+│   ├── queue.py
+│   ├── worker.py
+│   └── manager.py
+│
+├── storage/
+│   ├── database.py
+│   └── cleanup.py
+│
+├── utils/
+│   ├── logger.py
+│   ├── security.py
+│   └── helpers.py
+│
+├── requirements.txt
+├── .env.example
+└── README.md
+
+
+============================================================
+34. TXT GENERATION ARCHITECTURE
+============================================================
+
+User clicks:
+
+[📄 Generate TXT]
+
+        ↓
+
+Backend gets current authorized course data
+
+        ↓
+
+Normalize:
+
+course
+chapter
+content
+title
+type
+authorized reference
+
+        ↓
+
+TXT Generator
+
+        ↓
+
+physics_course.txt
+
+        ↓
+
+Telegram Document Upload
+
+        ↓
+
+Delete temporary TXT
+
+
+IMPORTANT:
+
+TXT is an export of authorized course metadata/references.
+
+It is NOT an authentication/session export.
+
+
+============================================================
+35. MULTIPLE COURSE EXPORT
+============================================================
+
+User:
+
+[📄 Export TXT]
+
+Bot:
+
+Select:
+
+☐ Physics
+☐ Maths
+☐ Chemistry
+☐ Reasoning
+
+[Generate]
+
+
+Backend:
+
+Fetch authorized courses
+        ↓
+Fetch authorized content
+        ↓
+Generate one TXT
+
+
+Filename:
+
+appx_course_export.txt
+
+
+OR:
+
+One file per course:
+
+physics.txt
+maths.txt
+chemistry.txt
+
+
+Configuration option:
+
+EXPORT_MODE=single
+or
+EXPORT_MODE=separate
+
+
+============================================================
+36. LARGE COURSE HANDLING
+============================================================
+
+If course has:
+
+500+
+1000+
+5000+ items
+
+Do NOT keep entire media files in RAM.
+
+For TXT:
+
+Stream generation where practical.
+
+For media:
+
+Process one item at a time.
+
+
+Memory-safe flow:
+
+API
+ ↓
+Item
+ ↓
+Process
+ ↓
+Upload
+ ↓
+Delete
+ ↓
+Next Item
+
+
+============================================================
+37. TELEGRAM FILE LIMIT HANDLING
+============================================================
+
+Before upload:
+
+Check file size.
+
+If supported: 2 gb using api id and api hash upload
+
+Upload normally.
+
+If file exceeds configured Telegram/bot limit:
+
+Mark item:
+
+❌ File too large for Telegram delivery.
+
+Do not keep unnecessary local copy.
+
+
+============================================================
+38. USER EXPERIENCE — COMPLETE EXAMPLE
+============================================================
+
+/start
+
+BOT:
+
+👋 Welcome to APPX Course Bot.
+
+🔐 Login with your authorized course account.
+
+[🔐 Login]
+
+
+User clicks Login.
+
+BOT:
+
+Enter Course ID / Username:
+
+
+User:
+
+abc123
+
+
+BOT:
+
+Enter Password:
+
+
+User:
+
+********
+
+
+BOT:
+
+⏳ Authenticating...
+
+
+PLATFORM:
+
+SUCCESS
+
+
+BOT:
+
+✅ Login Successful
+
+👤 Demo User
+📚 12 Courses Available
+
+[📚 View Courses]
+
+
+User:
+
+Physics
+
+
+BOT:
+
+📚 Physics
+
+18 Chapters
+84 Videos
+21 PDFs
+
+[📋 View Content]
+[📄 Generate TXT]
+[⚙️ Create Media Job]
+
+
+User:
+
+Generate TXT
+
+
+BOT:
+
+⏳ Preparing export...
+
+
+BOT:
+
+📄 Export Ready
+
+physics_course.txt
+
+[File]
+
+
+
+============================================================
+39. MEDIA JOB EXAMPLE
+============================================================
+
+User:
+
+[⚙️ Create Media Job]
+
+
+BOT:
+
+Select content:
+
+☐ Chapter 1
+☐ Chapter 2
+☐ Chapter 3
+
+[Select All]
+[Create Job]
+
+
+User:
+
+Create Job
+
+
+BOT:
+
+⚙️ Job Created
+
+Job ID:
+APPX-8F31
+
+Items:
+25
+
+Status:
+Queued
+
+[📊 Status]
+[❌ Cancel]
+
+
+Worker:
+
+Item 1
+ ↓
+Authorized access
+ ↓
+Process
+ ↓
+Upload
+ ↓
+Delete
+
+
+Item 2
+ ↓
+...
+
+
+BOT:
+
+📊 APPX-8F31
+
+━━━━━━━━━━━━
+
+Progress: 20/25
+
+✅ Completed: 19
+❌ Failed: 1
+⏳ Remaining: 5
+
+Current:
+Chapter 4 - Video 2
+
+
+============================================================
+40. ERROR MESSAGES
+============================================================
+
+INVALID LOGIN:
+
+❌ Login failed.
+
+Please check your ID/password.
+
+
+SESSION EXPIRED:
+
+⚠️ Session expired.
+
+Please login again.
+
+[🔐 Login]
+
+
+ACCESS ERROR:
+
+❌ Content unavailable for this account.
+
+
+NETWORK ERROR:
+
+⚠️ Temporary network error.
+
+Retrying...
+
+
+PROCESSING ERROR:
+
+❌ Processing failed.
+
+[🔄 Retry]
+
+
+TELEGRAM ERROR:
+
+⚠️ Telegram upload failed.
+
+Retrying...
+
+
+============================================================
+41. ADMIN / OWNER CONTROLS
+============================================================
+
+Optional Phase 2.
+
+Admin can view:
+
+- Total users
+- Active sessions count
+- Active jobs
+- Queue size
+- Failed jobs
+- Storage usage
+- API errors
+- Telegram errors
+
+Admin MUST NOT see user passwords.
+
+Admin should not expose session secrets.
+
+
+============================================================
+42. PHASE— MVP
+============================================================
+
+BUILD FIRST:
+
+✓ Telegram bot
+✓ /start
+✓ Login
+✓ Secure session
+✓ Automatic user identification
+✓ Course list
+✓ Course details
+✓ Content list
+✓ TXT generation
+✓ TXT Telegram delivery
+✓ Job creation
+✓ Sequential worker
+✓ Progress
+✓ Retry
+✓ Cancel
+✓ Temporary storage
+✓ Cleanup
+✓ Logout
+✓ Basic database
+✓ Multiple course selection
+✓ Chapter selection
+✓ PDF processing
+✓ Better retry engine
+✓ Job history
+✓ Admin statistics
+✓ Queue management
+✓ Configurable limits
+✓ Better Telegram UI
+✓ Parallel workers where safe
+✓ Multi-tenant architecture
+✓ Advanced analytics
+✓ Scheduling
+✓ Storage optimization
+✓ Distributed workers
+✓ Multiple bot instances
+✓ Advanced monitoring
+
+
+============================================================
+45. GOALS
+============================================================
+
+This system should  be designed to:
+
+- bypass DRM
+- defeat access controls
+- steal cookies
+- steal tokens
+- harvest credentials
+- access another user's account
+- access courses not available to the authenticated account
+- bypass CAPTCHA or anti-bot protections
+- expose private session information
+
+
+
+
+
+============================================================
+46. FINAL PRODUCT FLOW
+============================================================
+
+                    USER
+                      ↓
+                  TELEGRAM
+                      ↓
+                     BOT
+                      ↓
+                LOGIN FORM
+                      ↓
+                ID + PASSWORD
+                      ↓
+               AUTHENTICATION
+                      ↓
+                SECURE SESSION
+                      ↓
+             USER IDENTIFICATION
+                      ↓
+              AUTHORIZED COURSES
+                      ↓
+               COURSE SELECTION
+                      ↓
+              CONTENT FETCHING
+                      ↓
+            ┌─────────┴─────────┐
+            ↓                   ↓
+       EXPORT TXT          MEDIA JOB
+            ↓                   ↓
+       TXT GENERATOR         QUEUE
+            ↓                   ↓
+      TELEGRAM FILE          WORKER
+                                ↓
+                         AUTHORIZED MEDIA
+                                ↓
+                           PROCESSING
+                                ↓
+                         TELEGRAM UPLOAD
+                                ↓
+                         TEMP DELETE
+                                ↓
+                           JOB COMPLETE
+
+
+============================================================
+47. CORE DESIGN RULE
+============================================================
+
+ID + Password milne ke baad:
+
+Credentials
+    ↓
+Authentication
+    ↓
+Session
+    ↓
+User Identity
+    ↓
+Authorization
+    ↓
+Courses
+    ↓
+Content
+    ↓
+TXT Export / Authorized Processing
+    ↓
+Telegram Delivery
+
+
+- tenant_id
+- user_id
+- API token
+- cookies
+- JWT
+- session ID
+
+
+Platform authentication response se required identity/session
+information automatically obtain ki jayegi.
+
+
+============================================================
+48. FINAL MVP SUCCESS CRITERIA
+============================================================
+
+MVP successful maana jayega agar:
+
+1. User Telegram se login kar sake.
+2. Password database/logs me save na ho.
+3. Login ke baad courses automatically show hon.
+4. User course select kar sake.
+5. Course ka content Telegram par browse kar sake.
+6. User one-click TXT export kar sake.
+7. TXT Telegram document ke roop me mil jaye.
+8. TXT me credentials/session secrets na hon.
+9. Authorized media ke liye job create ho sake.
+10. Job sequentially process ho.
+11. Progress Telegram message me update ho.
+12. Failed items retry ho saken.
+13. User job cancel kar sake.
+14. Temporary files automatically delete hon.
+15. Logout ke baad session securely clear ho.
+16. Ek Telegram user dusre user ka data access na kar sake.
+
+
+============================================================
+FINAL PRODUCT DEFINITION
+============================================================
+
+APPX COURSE BOT ek Telegram-first authorized course assistant hoga.
+
+User ko sirf:
+
+ID + Password
+     ↓
+Login
+     ↓
+Course Select
+     ↓
+Content Select
+     ↓
+TXT / Authorized Processing
+
+karna hoga.
+
+Baaki:
+
+Authentication
+Session management
+User identification
+Course fetching
+Content fetching
+TXT generation
+Job queue
+Processing
+Progress
+Telegram upload
+Temporary cleanup
+
+backend automatically handle karega.
+
+============================================================
+END OF PRD
+============================================================
+ 
