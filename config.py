@@ -55,7 +55,7 @@ def _env_list(name: str, default: list[str] | None = None) -> list[str]:
 @dataclass
 class Config:
     # --- Telegram ---
-    bot_token: str = ""
+    bot_token: str = "8932804521:AAFPcpGIBytzm5XoJbQYY3y2j5azXQUBK2Y"
     admin_ids: list[int] = field(default_factory=list)
     # Delivery target: set karo to media/exports is channel me jayengi
     # (user DM ke bajaye). Channel me bot ko admin hona chahiye.
