@@ -1,1 +1,2 @@
-worker: python your_script_name.py
+worker: python main.py
+
